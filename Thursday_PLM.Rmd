@@ -1,0 +1,188 @@
+---
+title: "PML Prediction Assignment"
+author: "Solomon Kebede"
+date: "24/09/2020"
+output: html_document
+---
+
+## Introduction  
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.  
+
+
+In this project,I will use the data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise.
+
+
+```{r}
+setwd("C:/Users/Solomon/Desktop/coursera_machine_learninig")
+```
+
+
+First I have to load the required R packages and set a seed.
+
+```{r}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(corrplot)
+library(rattle)
+library(randomForest)
+library(RColorBrewer)
+```
+
+
+```{r}
+set.seed(1813)
+```
+
+Next, I have to Load the training and test datasets.
+
+```{r}
+url_train <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url_quiz  <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+```
+
+
+```{r}
+data_train <- read.csv(url(url_train), strip.white = TRUE, na.strings = c("NA",""))
+data_quiz  <- read.csv(url(url_quiz),  strip.white = TRUE, na.strings = c("NA",""))
+```
+
+
+```{r}
+dim(data_train)
+```
+
+
+```{r}
+dim(data_quiz)
+```
+
+
+
+Then, we need to create two partitions (75 % and 25 %) within the original training dataset.
+
+
+```{r}
+in_train  <- createDataPartition(data_train$classe, p=0.75, list=FALSE)
+train_set <- data_train[ in_train, ]
+test_set  <- data_train[-in_train, ]
+```
+
+
+```{r}
+dim(train_set)
+```
+
+
+```{r}
+dim(test_set)
+```
+
+
+The two datasets such as (train_set and test_set) have a large number of NA values as well as near-zero-variance (NZV) variables. Both will be removed together with their ID variables.
+
+```{r}
+nzv_var <- nearZeroVar(train_set)
+```
+
+
+```{r}
+train_set <- train_set[ , -nzv_var]
+test_set  <- test_set [ , -nzv_var]
+```
+
+```{r}
+dim(train_set)
+```
+
+```{r}
+dim(test_set)
+```
+
+
+Remove variables that are mostly NA. A threshlod of 95 % is selected.
+
+```{r}
+na_var <- sapply(train_set, function(x) mean(is.na(x))) > 0.95
+train_set <- train_set[ , na_var == FALSE]
+test_set  <- test_set [ , na_var == FALSE]
+```
+
+
+```{r}
+dim(train_set)
+```
+
+
+```{r}
+dim(test_set)
+```
+
+
+The columns 1 to 5 are identification variables only, they will be removed as well.
+
+```{r}
+train_set <- train_set[ , -(1:5)]
+test_set  <- test_set [ , -(1:5)]
+```
+
+
+```{r}
+dim(train_set)
+```
+
+
+```{r}
+dim(test_set)
+```
+
+
+Therfore, the number of variables for the analysis has been reduced from the original 160 down to 54.
+
+
+5.Correlation Analysis
+
+We have Performed a correlation analysis between the variables before the modeling work itself is done. Then, select “FPC” for the first principal component order.
+
+
+```{r}
+corr_matrix <- cor(train_set[ , -54])
+corrplot(corr_matrix, order = "FPC", method = "circle", type = "lower",
+         tl.cex = 0.6, tl.col = rgb(0, 0, 0))
+```
+
+
+The two variables are highly correlated their colors are either dark blue (for a positive correlation) or dark red (for a negative corraltions).In order to further reduce the number of variables, a Principal Components Analysis (PCA) could be performed as the next step. Consequently, since there are only very few strong correlations among the input variables, the PCA will not be performed. Instead, a few different prediction models will be built next.
+
+
+6.Prediction Models and we will see the decision tree model
+
+6.1. Decision Tree Model
+
+```{r}
+set.seed(1813)
+fit_decision_tree <- rpart(classe ~ ., data = train_set, method="class")
+fancyRpartPlot(fit_decision_tree)
+```
+
+
+Prediction Model 
+
+Random Forest
+
+ 
+
+```{r} 
+set.seed(301)
+controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+modFitRandForest <- train(classe ~ ., data=train_set, method="rf",
+                          trControl=controlRF)
+modFitRandForest$finalModel
+```
+
+
+
+
